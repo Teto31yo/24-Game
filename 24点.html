@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>24点 · 自定义出题 (3~6张牌)</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+      background: #f0f0f0;
+      font-family: "Microsoft YaHei", sans-serif;
+      padding: 20px;
+      position: relative;
+    }
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999; gap: 30px; display: none; }
+    .overlay.active { display: flex; }
+    
+    .main-title { font-size: 60px; color: #ff0; text-shadow: 0 0 10px #000; font-weight: bold; text-align: center; }
+    .mode-btn, .nav-btn {
+      font-size: 28px;
+      padding: 25px 60px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      transition: 0.2s;
+    }
+    .mode-btn:hover { transform: scale(1.05); }
+    .btn-challenge { background: #6cf; }
+    .btn-endless { background: #fa7; }
+    .btn-custom { background: #c8a0ff; }
+    .btn-easy { background: #8f8; }
+    .btn-normal { background: #ff9; }
+    .btn-hard { background: #f99; }
+    .btn-impossible { background: #a00; }
+    .nav-btn { background: #ddd; margin-top: 20px; padding: 15px 40px; font-size: 22px; }
+    .nav-btn:hover { background: #bbb; }
+
+    .level-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 70px);
+      gap: 10px;
+      margin: 20px 0;
+    }
+    .level-btn {
+      width: 70px; height: 70px;
+      font-size: 24px; font-weight: bold;
+      border: 2px solid #333; border-radius: 8px;
+      cursor: pointer;
+    }
+    .level-btn.lock { background: #aaa; color: #666; cursor: not-allowed; }
+    .level-btn.unlock { background: #fff; }
+    .level-btn.unlock:hover { background: #e0e0e0; }
+    .level-btn.passed { background: #8f8; color: #000; }
+
+    .top-info { font-size: 28px; font-weight: bold; height: 40px; color: #333; text-align: center; }
+    .card-wrap {
+      display: flex;
+      gap: 16px;
+      margin: 10px auto;
+      flex-wrap: wrap;
+      justify-content: center;
+      min-height: 120px;
+      max-width: 1120px;
+    }
+
+    .card {
+      width: 126px;
+      height: 176px;
+      background: white;
+      border: 3px solid #000;
+      border-radius: 12px;
+      position: relative;
+      padding: 8px;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      flex-direction: column;
+  }
+    .card:hover:not(.used) { box-shadow: 0 0 10px #666; transform: translateY(-5px); }
+    .card.used { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+    .card .card-value { font-size: 42px; }
+    .top-text { position: absolute; top: 8px; left: 10px; font-size: 20px; }
+    .bottom-text { position: absolute; bottom: 8px; right: 10px; font-size: 20px; transform: rotate(180deg); }
+    .center-suit { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 64px; }
+
+    .btn-area { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+    .btn-area .row { display: flex; gap: 10px; }
+    .btn-area button {
+      width: 60px; height: 50px; font-size: 24px; font-weight: bold;
+      border: 2px solid #222; border-radius: 6px; background: #fff; cursor: pointer;
+    }
+    .btn-area button:hover { background: #e0e0e0; }
+
+    .input-row {
+      display: flex; align-items: center; gap: 12px; font-size: 28px;
+      width: 90%; max-width: 700px;
+      margin: 10px auto;
+    }
+    #exprBox {
+      flex: 1; height: 60px; border: 3px solid #333; padding: 0 16px;
+      font-size: 28px; line-height: 60px; background: white; overflow-x: auto; white-space: nowrap;
+      border-radius: 6px;
+    }
+    #resultText { min-width: 100px; text-align: center; font-weight: bold; font-size: 28px; }
+    #resultText.green { color: #0a0; }
+    #resultText.red { color: #f00; }
+
+    .func-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
+    .func-btns button {
+      padding: 10px 20px; font-size: 16px; font-weight: bold; border: 2px solid #222; border-radius: 6px; cursor: pointer;
+    }
+    .func-btns button:hover { opacity: 0.8; }
+    #undoBtn { background: #e0c8ff; }
+    #resetAll { background: #ffcccc; }
+    #newCards { background: #cce5ff; }
+    #hintBtn { background: #ffe066; }
+
+    #hintTip { color: #945000; font-size: 20px; min-height: 30px; text-align: center; }
+
+    .sub-menu { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
+
+    /* 自定义模式 —— 支持 3~6 张牌 */
+    .custom-input-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 25px;
+      background: rgba(255,255,255,0.12);
+      padding: 40px 30px;
+      border-radius: 20px;
+      width: 92%;
+      max-width: 700px;
+    }
+    .custom-input-area textarea {
+      width: 100%;
+      min-height: 80px;
+      padding: 18px 20px;
+      font-size: 28px;
+      font-family: "Microsoft YaHei", monospace;
+      background: rgba(255,255,255,0.92);
+      border: 3px solid #ffd966;
+      border-radius: 16px;
+      resize: vertical;
+      color: #1e1e1e;
+      outline: none;
+      transition: 0.2s;
+      letter-spacing: 2px;
+      line-height: 1.4;
+    }
+    .custom-input-area textarea:focus {
+      border-color: #ffb347;
+      box-shadow: 0 0 20px rgba(255, 200, 0, 0.3);
+      background: #fff;
+    }
+    .custom-input-area .hint-text {
+      color: #e0e0e0;
+      font-size: 20px;
+      text-align: center;
+      background: rgba(0,0,0,0.3);
+      padding: 10px 20px;
+      border-radius: 40px;
+      width: 100%;
+    }
+    .custom-input-area .start-btn {
+      font-size: 30px;
+      padding: 18px 60px;
+      border-radius: 60px;
+      border: none;
+      background: #8f8;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+      box-shadow: 0 4px 0 #2a6b2a;
+    }
+    .custom-input-area .start-btn:hover { transform: scale(1.03); background: #9f9; }
+    .custom-input-area .start-btn:active { transform: translateY(4px); box-shadow: none; }
+
+    .custom-example {
+      color: #ccc;
+      font-size: 18px;
+      background: rgba(0,0,0,0.3);
+      padding: 8px 24px;
+      border-radius: 40px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .custom-example:hover { background: rgba(255,255,255,0.2); color: #fff; }
+
+    .card-count-badge {
+      color: #fff;
+      font-size: 18px;
+      background: rgba(0,0,0,0.5);
+      padding: 6px 20px;
+      border-radius: 40px;
+      margin-top: -5px;
+    }
+
+    @media (max-width: 700px) {
+      .card-wrap {
+        max-width: 736px;
+        gap: 12px;
+        margin: 10px auto;
+      }
+      .card {
+        width: 80px;
+        height: 112px;
+        padding: 4px;
+        font-size: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 主菜单 -->
+  <div class="overlay active" id="mainMenu">
+    <div class="main-title">24点</div>
+    <div style="display: flex; flex-direction: column; gap: 25px; align-items: center;">
+      <button class="mode-btn btn-challenge" id="enterChallenge">闯关模式</button>
+      <button class="mode-btn btn-endless" id="enterEndless">无尽模式</button>
+      <button class="mode-btn btn-custom" id="enterCustom">✏️ 自定义出题</button>
+    </div>
+  </div>
+
+  <!-- 自定义出题页面 (支持3~6张) -->
+  <div class="overlay" id="customPanel">
+    <div class="main-title">✏️ 自定义出题</div>
+    <div class="custom-input-area">
+      <div style="width:100%;">
+        <textarea id="customInputArea" placeholder="输入数字，用逗号分隔 (3~6个)&#10;例如：3,5,0,2,3,4">3,5,0,2,3,4</textarea>
+      </div>
+      <div class="hint-text">支持整数、小数 (0.5)、负数 (-3)、分数 (3/4) ，3~6个数字</div>
+      <div style="display:flex; flex-wrap:wrap; gap:12px; justify-content:center;">
+      </div>
+      <button class="start-btn" id="customStart">▶ 开始游戏</button>
+      <div class="card-count-badge" id="cardCountDisplay">当前：4 张牌</div>
+    </div>
+    <button class="nav-btn" id="backMainFromCustom">返回主菜单</button>
+  </div>
+
+  <!-- 难度选择 -->
+  <div class="overlay" id="difficultyPanel">
+    <div class="main-title">选择难度</div>
+    <div class="sub-menu">
+      <button class="mode-btn btn-easy" data-mode="easy">简单</button>
+      <button class="mode-btn btn-normal" data-mode="normal">中等</button>
+      <button class="mode-btn btn-hard" data-mode="hard">困难</button>
+      <button class="mode-btn btn-impossible" data-mode="impossible">绝对不可能！！！🤯</button>
+    </div>
+    <button class="nav-btn" id="backMainFromDiff">返回主菜单</button>
+  </div>
+
+  <!-- 关卡选择 -->
+  <div class="overlay" id="levelPanel">
+    <div class="main-title" id="panelTitle">选择关卡</div>
+    <div class="level-grid" id="levelGrid"></div>
+    <button class="nav-btn" id="backDiff">返回难度选择</button>
+  </div>
+
+  <!-- 游戏主界面 -->
+  <div id="gameContainer" style="display:none; flex-direction:column; align-items:center; gap:15px; width:100%;">
+  <div class="top-info" id="topInfo">
+    <span id="levelPrefix">关卡 </span>
+    <span id="levelNumber" style="cursor:pointer;color:#06c;text-decoration:underline;">22/</span>
+    <span id="levelSuffix">24</span>
+  </div>
+    <div class="card-wrap" id="cardWrap">
+      <!-- 动态生成卡片 -->
+    </div>
+    
+    <div class="btn-area">
+      <div class="row">
+        <button data-token="(">(</button><button data-token=")">)</button><button data-token="[">[</button><button data-token="]">]</button>
+      </div>
+      <div class="row">
+        <button data-token="+">+</button><button data-token="-">-</button><button data-token="×">×</button><button data-token="÷">÷</button>
+      </div>
+    </div>
+
+    <div class="input-row">
+      <div id="exprBox"></div>
+      <span id="resultText">= ?</span>
+    </div>
+    
+    <div id="hintTip">💡 点击提示按钮获取第一步提示</div>
+
+    <div class="func-btns">
+      <button id="undoBtn">↩️ 撤回</button>
+      <button id="resetAll">🗑️ 清空</button>
+      <button id="newCards">➡️ 下一组</button>
+    </div>
+    
+    <button class="nav-btn" id="backSelect" style="margin-top:5px;">返回</button>
+  </div>
+
+<script>
+// ================= 常量配置 =================
+const suitList = [ {icon:'♠',color:'#000'}, {icon:'♥',color:'#f00'}, {icon:'♦',color:'#f00'}, {icon:'♣',color:'#000'} ];
+const cardIds = ['c1','c2','c3','c4','c5','c6'];  // 最多6张
+
+const easyLevels = [
+    [1,13,4,7], [2,8,7,7], [2,4,6,6], [9,8,13,6],
+    [5,5,5,5], [4,4,5,3], [1,2,3,4], [6,6,6,6], 
+    [2,4,8,8], [8,2,4,6], [7,3,2,10], [12,1,2,3],
+    [9,3,3,6], [11,5,1,8], [2,3,9,10], [6,6,3,3], 
+    [4,7,2,10], [1,7,8,10], [5,8,2,9], [13,2,2,12],
+    [3,8,4,6], [7,8,9,1], [1,3,7,8], [1,1,4,5]
+];
+
+const normalLevels = [
+    [4,3,9,9], [7,7,2,3], [1,1,2,8], [10,10,4,4],
+    [5,7,8,8], [2,2,5,8], [3,4,5,6], [1,3,4,6],
+    [2,3,4,5], [1,5,5,5], [6,8,8,9], [3,3,3,3],
+    [4,4,4,6], [1,1,5,5], [2,2,4,8], [7,8,9,10],
+    [5,6,7,8], [3,5,5,6], [4,5,5,6], [1,4,5,6],
+    [2,5,5,10], [3,3,5,6], [4,4,4,4], [1,1,4,4]
+];
+
+const hardLevels = [
+    [2,2,2,8], [1,1,2,7], [1,1,3,4], [1,1,4,5],
+    [1,2,2,4], [1,2,2,5], [1,2,3,3], [1,3,3,3],
+    [2,2,2,3], [2,2,3,3], [2,3,3,3], [3,3,3,4],
+    [2,4,6,9], [3,3,3,8], [1,4,4,4], [5,5,5,1],
+    [2,2,4,4], [1,6,6,6], [2,6,6,6], [3,6,6,6],
+    [4,6,6,6], [5,6,6,6], [16,7,7,7], [3,7,7,7]
+];
+
+const impossibleLevels = [
+    [2,4,78,91], [2,3,3], [3,6,100,605], [242,4,240,0],
+    [1,23,350,234], [2,1,6,65512], [2,1,2,40,72,255],[3,3,3,762559,7484963,114514],
+    [24,24,24,24], [1,2,3,1704], [2,40,0.01,-0.5], [0.0576,0.5,10,0],
+    ["13/78",78,"13",2,"3584/9"], [6,7,3,4], [3,3,3], [2**31-1,1,"(1/31)",12],
+    [7,3,3,19], [114,514,1919,810,3333,350234], [2,10,1000], [0,1,2,3],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], [], [2,4], [24]
+    
+];
+
+const allLevels = { easy: easyLevels, normal: normalLevels, hard: hardLevels, impossible: impossibleLevels };
+const totalPerMode = 24;
+
+let gameMode = "";
+let nowLevel = 1;
+let maxUnlock = { easy: 1, normal: 1, hard: 1, impossible: 1 };
+let endlessCount = 0;
+let cardValues = [];
+let exprTokens = [];
+let usedIndices = [];
+let isVictory = false;
+let history = [];
+let autoAdvanceTimer = null;
+let isCustomMode = false;
+
+const mainMenu = document.getElementById('mainMenu');
+const customPanel = document.getElementById('customPanel');
+const difficultyPanel = document.getElementById('difficultyPanel');
+const levelPanel = document.getElementById('levelPanel');
+const levelGrid = document.getElementById('levelGrid');
+const panelTitle = document.getElementById('panelTitle');
+const gameContainer = document.getElementById('gameContainer');
+const exprBox = document.getElementById('exprBox');
+const resultText = document.getElementById('resultText');
+const hintTip = document.getElementById('hintTip');
+const topInfo = document.getElementById('topInfo');
+const cardWrap = document.getElementById('cardWrap');
+
+function parseNumberInput(str) {
+    str = str.trim();
+    if (str === '') return null;
+    if (str.includes('/')) {
+        const parts = str.split('/');
+        if (parts.length === 2) {
+            const num = parseFloat(parts[0]);
+            const den = parseFloat(parts[1]);
+            if (!isNaN(num) && !isNaN(den) && den !== 0) return num / den;
+        }
+        return null;
+    }
+    const val = parseFloat(str);
+    return isNaN(val) ? null : val;
+}
+
+function getCardDisplay(val) {
+    const num = Number(val);
+    const map = { 1: 'A', 11: 'J', 12: 'Q', 13: 'K' };
+    return map[num] || String(val);
+}
+
+function getValueFromDisplay(display) {
+    const reverseMap = { 'A': 1, 'J': 11, 'Q': 12, 'K': 13 };
+    return reverseMap[display] || Number(display);
+}
+
+function convertTokensToExpr(tokens) {
+    let expr = tokens.join('');
+    expr = expr.replace(/×/g, '*').replace(/÷/g, '/').replace(/\[/g, '(').replace(/\]/g, ')');
+    return expr;
+}
+
+function processExpr(expr) {
+    return expr.replace(/[AJQK]/g, match => getValueFromDisplay(match));
+}
+
+function evaluateTokens(tokens) {
+    if (tokens.length === 0) return null;
+    let expr = convertTokensToExpr(tokens);
+    let depth = 0;
+    for(let c of expr) {
+        if(c==='(') depth++;
+        if(c===')') depth--;
+        if(depth<0) return null;
+    }
+    if(depth !== 0) return null;
+    try {
+        let processed = processExpr(expr);
+        let res = new Function(`return (${processed})`)();
+        return Math.round(res * 1e6) / 1e6;
+    } catch(e) { return null; }
+}
+
+function renderCards() {
+    cardWrap.innerHTML = '';
+    const count = cardValues.length;
+    cardValues.forEach((val, index) => {
+        const cardEl = document.createElement('div');
+        cardEl.className = 'card';
+        cardEl.id = cardIds[index] || `c${index+1}`;
+        const suit = suitList[Math.floor(Math.random() * 4)];
+        const display = getCardDisplay(val);
+        if (isCustomMode) {
+            cardEl.innerHTML = `<div class="card-value" style="color:${suit.color}">${display}</div>`;
+            cardEl.style.fontSize = val.toString().length > 3 ? '28px' : '42px';
+        } else {
+            cardEl.innerHTML = `
+                <div class="top-text" style="color:${suit.color}">${display}</div>
+                <div class="bottom-text" style="color:${suit.color}">${display}</div>
+                <div class="center-suit" style="color:${suit.color}">${suit.icon}</div>
+            `;
+            cardEl.style.fontSize = '28px';
+        }
+        cardEl.dataset.val = val;
+        cardEl.dataset.idx = index;
+        cardEl.onclick = () => handleCardClick(index);
+        cardWrap.appendChild(cardEl);
+        if (count >= 5) {
+            cardEl.style.width = '100px';
+            cardEl.style.height = '140px';
+        }
+        if (count >= 6) {
+            cardEl.style.width = '85px';
+            cardEl.style.height = '120px';
+        }
+    });
+    updateCardStatus();
+}
+
+function updateCardStatus() {
+    const cards = cardWrap.querySelectorAll('.card');
+    cards.forEach((card, idx) => {
+        if (usedIndices.includes(idx)) {
+            card.classList.add('used');
+        } else {
+            card.classList.remove('used');
+        }
+    });
+}
+
+function updateUI() {
+    exprBox.textContent = exprTokens.join('');
+    const res = evaluateTokens(exprTokens);
+    if (res !== null) {
+        if (Math.abs(res - 24) < 1e-6) {
+            resultText.textContent = `= ${res}`;
+            resultText.className = 'green';
+        } else {
+            resultText.textContent = `= ${res}`;
+            resultText.className = 'red';
+        }
+    } else {
+        resultText.textContent = '= 未知';
+        resultText.className = '';
+    }
+    updateCardStatus();
+
+    if (res !== null && Math.abs(res - 24) < 1e-6 && usedIndices.length === cardValues.length && !isVictory) {
+        isVictory = true;
+        resultText.className = 'green';
+        hintTip.textContent = "🎉 算对了！即将进入下一关...";
+        hintTip.style.color = "green";
+        if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+        autoAdvanceTimer = setTimeout(() => {
+            advanceToNext();
+        }, 1000);
+    }
+}
+
+function advanceToNext() {
+    autoAdvanceTimer = null;
+    if (gameMode === 'endless') {
+        endlessCount++;
+        loadEndless();
+    } else if (gameMode === 'custom') {
+        loadCustom(cardValues);
+    } else {
+        if (nowLevel < totalPerMode) {
+            nowLevel++;
+            if (nowLevel > maxUnlock[gameMode]) {
+                maxUnlock[gameMode] = nowLevel;
+                saveProgress();
+            }
+            loadLevel();
+        } else {
+            hintTip.textContent = "🏆 恭喜通关所有关卡！";
+            hintTip.style.color = "green";
+            isVictory = false;
+        }
+    }
+}
+
+function handleCardClick(index) {
+    if (isVictory) return;
+    if (usedIndices.includes(index)) return;
+    if (usedIndices.length >= cardValues.length) return;
+    const val = cardValues[index];
+    const token = String(val);
+    history.push({ type: 'add', index, token: token });
+    usedIndices.push(index);
+    exprTokens.push(token);
+    updateUI();
+}
+
+function addToken(token) {
+    if (isVictory) return;
+    exprTokens.push(token);
+    history.push({ type: 'addToken', token });
+    updateUI();
+}
+
+function undoAction() {
+    if (isVictory) return;
+    if (history.length === 0) return;
+    const last = history.pop();
+    if (last.type === 'add') {
+        const idx = usedIndices.lastIndexOf(last.index);
+        if (idx !== -1) usedIndices.splice(idx, 1);
+        exprTokens.pop();
+    } else if (last.type === 'addToken') {
+        exprTokens.pop();
+    }
+    updateUI();
+    hintTip.textContent = "已撤回上一步";
+    hintTip.style.color = "#945000";
+}
+
+function resetAll() {
+    if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
+    exprTokens = [];
+    usedIndices = [];
+    history = [];
+    isVictory = false;
+    hintTip.textContent = "";
+    hintTip.style.color = "#945000";
+    updateUI();
+}
+
+function loadLevel() {
+    if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
+    isCustomMode = false;
+    const levels = allLevels[gameMode];
+    if (!levels || nowLevel > levels.length) {
+        hintTip.textContent = "🏆 恭喜通关所有关卡！";
+        return;
+    }
+    cardValues = [...levels[nowLevel - 1]];
+    exprTokens = [];
+    usedIndices = [];
+    history = [];
+    isVictory = false;
+    
+    topInfo.innerHTML = `关卡 ${nowLevel}/<span id="levelClick" style="cursor:pointer;">${totalPerMode}</span>`;
+    document.getElementById('levelClick').onclick = () => addToken('24');
+
+    hintTip.textContent = "";
+    hintTip.style.color = "#945000";
+    resultText.className = '';
+    renderCards();
+    updateUI();
+}
+
+function loadEndless() {
+    if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
+    isCustomMode = false;
+    cardValues = [];
+    for(let i=0;i<4;i++){
+        cardValues.push(Math.floor(Math.random()*13)+1);
+    }
+    exprTokens = [];
+    usedIndices = [];
+    history = [];
+    isVictory = false;
+    topInfo.textContent = `♾️ 无尽模式 第 ${endlessCount + 1} 组`;
+    hintTip.textContent = "";
+    hintTip.style.color = "#945000";
+    resultText.className = '';
+    renderCards();
+    updateUI();
+}
+
+function loadCustom(values) {
+    if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
+    isCustomMode = true;
+    cardValues = [...values];
+    exprTokens = [];
+    usedIndices = [];
+    history = [];
+    isVictory = false;
+    topInfo.textContent = `✏️ 自定义 (${cardValues.length}张)`;
+    hintTip.textContent = "";
+    hintTip.style.color = "#945000";
+    resultText.className = '';
+    renderCards();
+    updateUI();
+}
+
+function saveProgress() {
+    try { localStorage.setItem('maxUnlock', JSON.stringify(maxUnlock)); } catch(e) {}
+}
+
+function loadProgress() {
+    try {
+        const data = localStorage.getItem('maxUnlock');
+        if (data) {
+            const parsed = JSON.parse(data);
+            if (parsed.easy) maxUnlock.easy = parsed.easy;
+            if (parsed.normal) maxUnlock.normal = parsed.normal;
+            if (parsed.hard) maxUnlock.hard = parsed.hard;
+            if (parsed.impossible) maxUnlock.impossible = parsed.impossible;
+        }
+    } catch(e) {}
+}
+
+function showMainMenu() {
+    mainMenu.classList.add('active');
+    customPanel.classList.remove('active');
+    difficultyPanel.classList.remove('active');
+    levelPanel.classList.remove('active');
+    gameContainer.style.display = 'none';
+}
+
+function showCustomPanel() {
+    mainMenu.classList.remove('active');
+    customPanel.classList.add('active');
+    difficultyPanel.classList.remove('active');
+    levelPanel.classList.remove('active');
+    gameContainer.style.display = 'none';
+}
+
+function showDifficultyPanel() {
+    mainMenu.classList.remove('active');
+    customPanel.classList.remove('active');
+    difficultyPanel.classList.add('active');
+    levelPanel.classList.remove('active');
+    gameContainer.style.display = 'none';
+}
+
+function showLevelPanel(mode) {
+    mainMenu.classList.remove('active');
+    customPanel.classList.remove('active');
+    difficultyPanel.classList.remove('active');
+    levelPanel.classList.add('active');
+    gameContainer.style.display = 'none';
+    const modeNames = { easy: '简单', normal: '中等', hard: '困难', impossible: '绝对不可能' };
+    panelTitle.textContent = `${modeNames[mode] || ''} - 选择关卡`;
+    renderLevelGrid(mode);
+}
+
+function showGame() {
+    mainMenu.classList.remove('active');
+    customPanel.classList.remove('active');
+    difficultyPanel.classList.remove('active');
+    levelPanel.classList.remove('active');
+    gameContainer.style.display = 'flex';
+}
+
+function renderLevelGrid(mode) {
+    levelGrid.innerHTML = '';
+    const levels = allLevels[mode];
+    if (!levels) return;
+    for (let i = 0; i < levels.length; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'level-btn';
+        btn.textContent = i + 1;
+        const unlocked = i + 1 <= maxUnlock[mode];
+        if (unlocked) {
+            btn.classList.add('unlock');
+            if (i + 1 < maxUnlock[mode]) btn.classList.add('passed');
+            btn.onclick = () => {
+                gameMode = mode;
+                nowLevel = i + 1;
+                showGame();
+                loadLevel();
+            };
+        } else {
+            btn.classList.add('lock');
+            btn.textContent = '🔒';
+        }
+        levelGrid.appendChild(btn);
+    }
+}
+
+document.getElementById('enterChallenge').addEventListener('click', showDifficultyPanel);
+document.getElementById('enterEndless').addEventListener('click', function() {
+    gameMode = 'endless';
+    endlessCount = 0;
+    showGame();
+    loadEndless();
+});
+document.getElementById('enterCustom').addEventListener('click', showCustomPanel);
+document.getElementById('backMainFromCustom').addEventListener('click', showMainMenu);
+
+document.getElementById('customStart').addEventListener('click', function() {
+    const raw = document.getElementById('customInputArea').value;
+    const parts = raw.split(',').map(s => s.trim()).filter(s => s !== '');
+    if (parts.length < 3) {
+        alert('至少输入3个数字，用逗号分隔 (例如: 3,5,0,2,3,4)');
+        return;
+    }
+    if (parts.length > 6) {
+        alert('最多输入6个数字，请减少数量');
+        return;
+    }
+    const values = parts.map(p => parseNumberInput(p));
+    for (let i = 0; i < values.length; i++) {
+        if (values[i] === null || isNaN(values[i])) {
+            alert(`第 ${i+1} 个数字 "${parts[i]}" 无效，请输入有效数字`);
+            return;
+        }
+    }
+    gameMode = 'custom';
+    showGame();
+    loadCustom(values);
+});
+
+document.getElementById('customInputArea').addEventListener('input', function() {
+    const parts = this.value.split(',').map(s => s.trim()).filter(s => s !== '');
+    const count = parts.length;
+    document.getElementById('cardCountDisplay').textContent = `当前：${count} 张牌 (3~6)`;
+});
+
+document.querySelectorAll('.custom-example').forEach(el => {
+    el.addEventListener('click', function() {
+        document.getElementById('customInputArea').value = this.dataset.example;
+        document.getElementById('customInputArea').dispatchEvent(new Event('input'));
+    });
+});
+
+document.querySelectorAll('#difficultyPanel [data-mode]').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const mode = this.dataset.mode;
+        showLevelPanel(mode);
+    });
+});
+
+document.getElementById('backMainFromDiff').addEventListener('click', showMainMenu);
+document.getElementById('backDiff').addEventListener('click', showDifficultyPanel);
+document.getElementById('backSelect').addEventListener('click', function() {
+    if (gameMode === 'endless') {
+        showMainMenu();
+    } else if (gameMode === 'custom') {
+        showCustomPanel();
+    } else {
+        showLevelPanel(gameMode);
+    }
+});
+
+document.querySelectorAll('.btn-area button[data-token]').forEach(btn => {
+    btn.addEventListener('click', function() { addToken(this.dataset.token); });
+});
+
+// 提示按钮已移除 - 不再绑定事件
+document.getElementById('undoBtn').addEventListener('click', undoAction);
+document.getElementById('resetAll').addEventListener('click', resetAll);
+document.getElementById('newCards').addEventListener('click', function() {
+    if (gameMode === 'endless') {
+        endlessCount++;
+        loadEndless();
+    } else if (gameMode === 'custom') {
+        const count = Math.floor(Math.random() * 4) + 3;
+        const newVals = Array.from({length: count}, () => Math.floor(Math.random()*13)+1);
+        loadCustom(newVals);
+        document.getElementById('customInputArea').value = newVals.join(',');
+        document.getElementById('customInputArea').dispatchEvent(new Event('input'));
+    } else {
+        if (nowLevel < totalPerMode) {
+            nowLevel++;
+            if (nowLevel > maxUnlock[gameMode]) {
+                maxUnlock[gameMode] = nowLevel;
+                saveProgress();
+            }
+            loadLevel();
+        } else {
+            hintTip.textContent = "已是最后一关！";
+            hintTip.style.color = "#945000";
+        }
+    }
+});
+
+document.addEventListener('keydown', function(e) {
+    const key = e.key;
+    if (key === 'Enter') { updateUI(); return; }
+    if (key === 'Backspace') { undoAction(); e.preventDefault(); return; }
+    if (['+', '-'].includes(key)) { addToken(key); e.preventDefault(); return; }
+    if (key === '*') { addToken('×'); e.preventDefault(); return; }
+    if (key === '/') { addToken('÷'); e.preventDefault(); return; }
+    if (['(', ')', '[', ']'].includes(key)) { addToken(key); e.preventDefault(); return; }
+    if (/^[0-9.]$/.test(key)) { addToken(key); e.preventDefault(); }
+});
+
+loadProgress();
+showMainMenu();
+document.getElementById('customInputArea').dispatchEvent(new Event('input'));
+</script>
+</body>
+</html>
