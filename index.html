@@ -500,7 +500,7 @@ const GameEngine = {
       [2,4,78,91], [2,3,3], [3,6,100,605], [242,4,240,0],
       [1,23,350,234], [2,1,6,65512], [2,1,2,40,72,255], [3,3,3,762559,7484963,114514],
       [24,24,24,24], [1,2,3,1704], [2,40,0.01,-0.5], [0.0576,0.5,10,0],
-      ["13/78",78,"13",2,"3584/9"], [6,7,3,4], [3,3,3], [2**31-1,1,"(1/31)",12],
+      ["13/78",78,13,2,"3584/9"], [6,7,3,4], [3,3,3], [2**31-1,1,"(1/31)",12],
       [7,3,3,19], [114,514,1919,810,3333,350234], [2,10,1000], [0,1,2,3],
       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], [], [2,4], [24]
     ]
@@ -843,8 +843,14 @@ const GameEngine = {
     
     this.dom.topInfo.innerHTML = `
       <span class="level-badge">${this.getModeName(this.state.gameMode)}</span>
-      <span id="levelText">${this.state.nowLevel} / ${this.config.totalPerMode}</span>
+      <span>${this.state.nowLevel} / </span>
+      <span id="levelClick" style="cursor:pointer;">${this.config.totalPerMode}</span>
     `;
+    setTimeout(() => {
+      const clickEl = document.getElementById('levelClick');     if (clickEl) {
+        clickEl.addEventListener('click', () => this.addToken('24'));
+      }
+    }, 0);
     
     this.showHint('', '');
     this.renderCards();
