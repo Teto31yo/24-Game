@@ -340,12 +340,12 @@
       .btn-area button { width: 52px; height: 48px; font-size: 20px; }
       .input-row { flex-direction: column; gap: 10px; }
       #resultText { min-width: auto; width: 100%; }
-      .level-grid { grid-template-columns: repeat(6, 1fr); }
+      .level-grid { grid-template-columns: repeat(, 1fr); }
     }
     @media (max-width: 480px) {
       .card { width: 70px !important; height: 100px !important; }
       .card .card-value { font-size: 24px !important; }
-      .level-grid { grid-template-columns: repeat(6, 1fr); }
+      .level-grid { grid-template-columns: repeat(3, 1fr); }
     }
   </style>
 </head>
@@ -812,17 +812,21 @@ const GameEngine = {
     } else if (this.state.gameMode === 'custom') {
       this.loadCustom(this.state.cardValues);
     } else {
-      if (this.state.nowLevel < this.config.totalPerMode) {
-        this.state.nowLevel++;
-        if (this.state.nowLevel > this.state.maxUnlock[this.state.gameMode]) {
-          this.state.maxUnlock[this.state.gameMode] = this.state.nowLevel;
-          this.saveProgress();
-        }
-        this.loadLevel();
-      } else {
+      this.state.nowLevel++;
+      if (this.state.nowLevel > this.state.maxUnlock[this.state.gameMode]) {
+        this.state.maxUnlock[this.state.gameMode] = this.state.nowLevel;
+        this.saveProgress();
+      }
+      
+      // 如果超出总关卡数，显示通关提示并返回关卡选择
+      if (this.state.nowLevel > this.config.totalPerMode) {
         this.showHint('🏆 恭喜通关所有关卡！', 'success');
         this.state.isVictory = false;
+        setTimeout(() => this.showLevelPanel(this.state.gameMode), 1500);
+        return;
       }
+      
+      this.loadLevel();
     }
   },
 
@@ -847,7 +851,8 @@ const GameEngine = {
       <span id="levelClick" style="cursor:pointer;">${this.config.totalPerMode}</span>
     `;
     setTimeout(() => {
-      const clickEl = document.getElementById('levelClick');     if (clickEl) {
+      const clickEl = document.getElementById('levelClick');
+      if (clickEl) {
         clickEl.addEventListener('click', () => this.addToken('24'));
       }
     }, 0);
@@ -1206,6 +1211,7 @@ const GameEngine = {
 
 // 启动
 document.addEventListener('DOMContentLoaded', () => GameEngine.init());
+
 </script>
 </body>
 </html>
