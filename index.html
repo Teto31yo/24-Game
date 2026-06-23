@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>24点</title>
+  <title>24点 · 数学益智游戏</title>
   <style>
     :root {
       --primary: #667eea;
@@ -669,7 +669,7 @@ const GameEngine = {
       cardEl.className = 'card';
       cardEl.id = this.config.cardIds[index] || `c${index + 1}`;
       
-      const suit = this.config.suitList[index % 4]; // 固定花色，避免闪烁
+      const suit = this.config.suitList[Math.floor(Math.random() * this.config.suitList.length)];
       const display = this.getCardDisplay(val);
       
       if (this.state.isCustomMode) {
@@ -1091,7 +1091,7 @@ const GameEngine = {
     const parts = raw.split(',').map(s => s.trim()).filter(s => s !== '');
     
     if (parts.length < 3) {
-      alert('至少输入3个数字，用逗号分隔 (例如: 3, 5, 8, 2)');
+      alert('至少输入3个数字，用逗号分隔 (例如: 3, 2, 1)');
       return;
     }
     if (parts.length > 6) {
