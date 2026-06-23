@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>24点 · 数学益智游戏</title>
+  <title>24点</title>
   <style>
     :root {
       --primary: #667eea;
@@ -549,8 +549,10 @@ const GameEngine = {
   getCardDisplay(val) {
     const num = Number(val);
     const map = { 1: 'A', 11: 'J', 12: 'Q', 13: 'K' };
-    if (map[num]) return map[num]
+    if (map[num]) return map[num];
+    // 处理大数字显示
     const s = String(val);
+    if (s.length > 4) return s.substring(0, 4) + '…';
     return s;
   },
 
@@ -1211,5 +1213,8 @@ const GameEngine = {
 document.addEventListener('DOMContentLoaded', () => GameEngine.init());
 
 </script>
+<div style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:8px 24px;text-align:center;font-size:12px;color:#fff;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);border-radius:40px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:10000;font-weight:500;text-shadow:0 1px 3px rgba(0,0,0,0.3);">
+  代码由豆包、千问、DeepSeek与Kimi AI生成
+</div>
 </body>
 </html>
