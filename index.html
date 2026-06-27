@@ -550,9 +550,7 @@ const GameEngine = {
     const num = Number(val);
     const map = { 1: 'A', 11: 'J', 12: 'Q', 13: 'K' };
     if (map[num]) return map[num];
-    // 处理大数字显示
     const s = String(val);
-    if (s.length > 4) return s.substring(0, 4) + '…';
     return s;
   },
 
