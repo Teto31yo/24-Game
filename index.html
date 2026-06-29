@@ -1056,7 +1056,7 @@ const GameEngine = {
   },
 
   getModeName(mode) {
-    const names = { easy: '🌱 简单', normal: '🌿 中等', hard: '🌳 困难', impossible: '🔥 绝对不可能' };
+    const names = { easy: '简单', normal: '中等', hard: '困难', impossible: '绝对不可能' };
     return names[mode] || mode;
   },
 
@@ -1194,17 +1194,6 @@ const GameEngine = {
       }
     }
   },
-
-  handleKeydown(e) {
-    const key = e.key;
-    if (key === 'Enter') { this.updateUI(); return; }
-    if (key === 'Backspace') { this.undoAction(); e.preventDefault(); return; }
-    if (['+', '-'].includes(key)) { this.addToken(key); e.preventDefault(); return; }
-    if (key === '*') { this.addToken('×'); e.preventDefault(); return; }
-    if (key === '/') { this.addToken('÷'); e.preventDefault(); return; }
-    if (['(', ')', '[', ']'].includes(key)) { this.addToken(key); e.preventDefault(); return; }
-    if (/^[0-9.]$/.test(key)) { this.addToken(key); e.preventDefault(); }
-  }
 };
 
 // 启动
